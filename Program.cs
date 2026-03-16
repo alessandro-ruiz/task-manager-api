@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagerApi.Data;
+using TaskManagerApi.Interfaces;
+using TaskManagerApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddSwaggerGen();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")

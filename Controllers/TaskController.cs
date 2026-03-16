@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using TaskManagerApi.Data;
 using TaskManagerApi.DTOs;
 using TaskManagerApi.Models;
+using TaskManagerApi.Interfaces;
+using TaskManagerApi.Services;
 
 namespace TaskManagerApi.Controllers
 {
@@ -10,45 +12,24 @@ namespace TaskManagerApi.Controllers
     [Route("api/[controller]")]
     public class TaskController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ITaskService _taskService;
 
-        public TaskController(AppDbContext context)
+        public TaskController(ITaskService taskService)
         {
-            _context = context;
+            _taskService = taskService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TaskResponseDto>>> GetTasks()
         {
-            var tasks = await _context.Tasks
-                .OrderByDescending(t => t.CreatedAt)
-                .Select(t => new TaskResponseDto
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Description = t.Description,
-                    IsCompleted = t.IsCompleted,
-                    CreatedAt = t.CreatedAt
-                })
-                .ToListAsync();
-
+            var tasks = await _taskService.GetAllAsync();
             return Ok(tasks);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<TaskResponseDto>> GetTaskById(int id)
         {
-            var task = await _context.Tasks
-                .Where(t => t.Id == id)
-                .Select(t => new TaskResponseDto
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    Description = t.Description,
-                    IsCompleted = t.IsCompleted,
-                    CreatedAt = t.CreatedAt
-                })
-                .FirstOrDefaultAsync();
+            var task = await _taskService.GetByIdAsync(id);
 
             if (task == null)
             {
@@ -60,42 +41,17 @@ namespace TaskManagerApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TaskResponseDto>> CreateTask(CreateTaskDto dto)
         {
-            var task = new TaskItem
-            {
-                Title = dto.Title,
-                Description = dto.Description,
-                IsCompleted = false,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Tasks.Add(task);
-            await _context.SaveChangesAsync();
-
-            var response = new TaskResponseDto
-            {
-                Id = task.Id,
-                Title = task.Title,
-                Description = task.Description,
-                IsCompleted = task.IsCompleted,
-                CreatedAt = task.CreatedAt
-            };
-
-            return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, response);
+            var creadtedTask = await _taskService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetTaskById), new { id = creadtedTask.Id }, creadtedTask);
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult> UpdateTask(int id, UpdateTaskDto dto)
         {
-            var existingTask = await _context.Tasks.FindAsync(id);
+            var update = await _taskService.UpdateAsync(id, dto);
 
-            if (existingTask == null)
+            if (!update)
                 return NotFound(new { message = $"Task with id {id} was not found." });
-
-            existingTask.Title = dto.Title;
-            existingTask.Description = dto.Description;
-            existingTask.IsCompleted = dto.IsCompleted;
-
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -103,13 +59,10 @@ namespace TaskManagerApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTask(int id)
         {
-            var existingTask = await _context.Tasks.FindAsync(id);
+            var deleted = await _taskService.DeleteAsync(id);
 
-            if (existingTask == null)
+            if (!deleted)
                 return NotFound(new { message = $"Task with id {id} was not found." });
-
-            _context.Tasks.Remove(existingTask);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
