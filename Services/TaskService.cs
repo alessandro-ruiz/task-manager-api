@@ -15,10 +15,30 @@ namespace TaskManagerApi.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<TaskResponseDto>> GetAllAsync()
+        public async Task<PagedResultDto<TaskResponseDto>> GetAllAsync(TaskQueryParametersDto query)
         {
-            return await _context.Tasks
+            var tasksQuery = _context.Tasks.AsQueryable();
+
+            if (query.IsCompleted.HasValue)
+            {
+                tasksQuery = tasksQuery.Where(t => t.IsCompleted == query.IsCompleted.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.Search))
+            {
+                var search = query.Search.Trim().ToLower();
+
+                tasksQuery = tasksQuery.Where(t =>
+                    t.Title.ToLower().Contains(search) ||
+                    (t.Description != null && t.Description.ToLower().Contains(search)));
+            }
+
+            var totalCount = await tasksQuery.CountAsync();
+
+            var items = await tasksQuery
                 .OrderByDescending(t => t.CreatedAt)
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .Select(t => new TaskResponseDto
                 {
                     Id = t.Id,
@@ -28,6 +48,15 @@ namespace TaskManagerApi.Services
                     CreatedAt = t.CreatedAt
                 })
                 .ToListAsync();
+
+            return new PagedResultDto<TaskResponseDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = query.Page,
+                PageSize = query.PageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)query.PageSize)
+            };
         }
 
         public async Task<TaskResponseDto?> GetByIdAsync(int id)

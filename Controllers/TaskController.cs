@@ -20,10 +20,14 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TaskResponseDto>>> GetTasks()
+        public async Task<ActionResult<PagedResultDto<TaskResponseDto>>> GetTasks([FromQuery] TaskQueryParametersDto query)
         {
-            var tasks = await _taskService.GetAllAsync();
-            return Ok(tasks);
+            if (query.Page <= 0) query.Page = 1;
+            if (query.PageSize <= 0) query.PageSize = 10;
+            if (query.PageSize > 50) query.PageSize = 50;
+
+            var result = await _taskService.GetAllAsync(query);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
