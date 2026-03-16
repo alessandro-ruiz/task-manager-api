@@ -10,6 +10,6 @@ namespace TaskManagerApi.Data
 
         }
 
-        public DbSet<TaskItem> Task => Set<TaskItem>();
+        public DbSet<TaskItem> Tasks => Set<TaskItem>();
     }
 }
